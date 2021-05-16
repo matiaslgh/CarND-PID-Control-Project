@@ -4,10 +4,15 @@
 #include <string>
 #include "json.hpp"
 #include "PID.h"
+#include "params_optimizer.h"
+#include "cycle_detector.h"
 
 // for convenience
 using nlohmann::json;
 using std::string;
+
+const double MIN_TOLERANCE = 0.0001;
+const double MAX_CTE = 10;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -38,9 +43,15 @@ int main() {
   double Ki = 0.001;
   double Kd = 0.001;
   pid.Init(Kp, Ki, Kd);
+  std::vector<double> params{ Kp, Ki, Kd };
+  ParamsOptimizer paramsOptimizer{ params, MIN_TOLERANCE};
+  CycleDetector cycleDetector;
 
-  h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, 
-                     uWS::OpCode opCode) {
+  h.onMessage([
+    &pid,
+    &paramsOptimizer,
+    &cycleDetector
+  ](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -58,24 +69,25 @@ int main() {
           // double speed = std::stod(j[1]["speed"].get<string>());
           // double angle = std::stod(j[1]["steering_angle"].get<string>());
 
-          /**
-           * TODO: Calculate steering value here, remember the steering value is
-           *   [-1, 1].
-           * NOTE: Feel free to play around with the throttle and speed.
-           *   Maybe use another PID controller to control the speed!
-           */
           pid.UpdateError(-cte);
           double steer_value = pid.TotalError();
-          
+          if (cycleDetector.isHalfCycleCompleted(cte) || fabs(cte) > MAX_CTE) {
+            double avg_error_in_cycle = cycleDetector.getAverageError();
+            cycleDetector.cleanState();
+            std::vector<double> new_params = paramsOptimizer.getParams(avg_error_in_cycle);
+            pid.Init(new_params[0], new_params[1], new_params[2]);
+          } else {
+            cycleDetector.update(cte);
+          }
+
           // DEBUG
-          std::cout << "CTE: " << cte << " Steering Value: " << steer_value 
-                    << std::endl;
+          // std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.3;
+          msgJson["throttle"] = 0.1;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          // std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }  // end "telemetry" if
       } else {
