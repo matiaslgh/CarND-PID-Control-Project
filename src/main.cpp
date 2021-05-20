@@ -5,14 +5,15 @@
 #include "json.hpp"
 #include "PID.h"
 #include "params_optimizer.h"
-#include "cycle_detector.h"
 
 // for convenience
 using nlohmann::json;
 using std::string;
+using std::max;
+using std::min;
 
 const double MIN_TOLERANCE = 0.0001;
-const double MAX_CTE = 10;
+const bool TWIDDLE_ENABLED = false;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -35,22 +36,39 @@ string hasData(string s) {
   return "";
 }
 
+// double calculateThrottle(double cte) {
+//   double possitive_cte = fabs(cte);
+//   if (fabs(cte) < 0.01 ) {
+//     return 1.1 - (possitive_cte / 0.01);
+//   }
+//   return 0.3;
+// }
+
 int main() {
   uWS::Hub h;
 
   PID pid;
-  double Kp = 0.3;
-  double Ki = 0.001;
-  double Kd = 0.001;
+  // double Kp = 0.2; 
+  // double Ki = 0.0001;
+  // double Kd = 2;
+
+  // best error:  0.136547
+  double Kp = 0.210960; 
+  double Ki = 0.000400;
+  double Kd = 2.000300;
+
   pid.Init(Kp, Ki, Kd);
   std::vector<double> params{ Kp, Ki, Kd };
   ParamsOptimizer paramsOptimizer{ params, MIN_TOLERANCE};
-  CycleDetector cycleDetector;
+
+  int count = 0;
+  double total_error = 0;
 
   h.onMessage([
     &pid,
     &paramsOptimizer,
-    &cycleDetector
+    &count,
+    &total_error
   ](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -71,21 +89,28 @@ int main() {
 
           pid.UpdateError(-cte);
           double steer_value = pid.TotalError();
-          if (cycleDetector.isHalfCycleCompleted(cte) || fabs(cte) > MAX_CTE) {
-            double avg_error_in_cycle = cycleDetector.getAverageError();
-            cycleDetector.cleanState();
-            std::vector<double> new_params = paramsOptimizer.getParams(avg_error_in_cycle);
-            pid.Init(new_params[0], new_params[1], new_params[2]);
-          } else {
-            cycleDetector.update(cte);
+
+          if (TWIDDLE_ENABLED) {
+            if (count > 500) {
+              std::vector<double> new_params = paramsOptimizer.getParams(total_error / count);
+              pid.Init(new_params[0], new_params[1], new_params[2]);
+              count = 0;
+              total_error = 0;
+            } else {
+              total_error += fabs(cte);
+              count++;
+            }
           }
 
+          // double throttle = calculateThrottle(cte);
+
           // DEBUG
-          // std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
+          // std::cout << "cte: " << cte << " steer_value: " << steer_value << std::endl;
+          // std::cout << "cte: " << cte << " throttle: " << throttle << std::endl;
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.1;
+          msgJson["throttle"] = 0.3;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           // std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);

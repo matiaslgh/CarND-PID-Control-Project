@@ -14,6 +14,7 @@ class ParamsOptimizer {
   double getTolerance();
   void handleBetterError(double error);
   void setNextParamIndexToUpdate();
+  void log(std::string msg);
 
  public:
   ParamsOptimizer(std::vector<double> initial_params, double min_tolerance);
