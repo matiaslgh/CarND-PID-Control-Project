@@ -103,7 +103,7 @@ int main() {
 
           steeringPID.UpdateError(-cte);
           double steer_value = steeringPID.TotalError();
-          if (fabs(cte) > 0.9) {
+          if (!TWIDDLE_ENABLED && fabs(cte) > 0.9) {
             std::cout << "CTE: " << cte << " | Boost steer_value from " << steer_value << " to " << steer_value * 1.25 << std::endl;
             // Boost the steering value correction for some special curves where the error is too big
             steer_value *= 1.4;
