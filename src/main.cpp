@@ -15,6 +15,7 @@ using std::min;
 const double MIN_TOLERANCE = 0.002;
 const bool TWIDDLE_ENABLED = false;
 const int AMOUNT_OF_ITERATIONS = 10000;
+const bool FAST_AND_FURIOUS_MODE_ENABLED = false;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -37,32 +38,48 @@ string hasData(string s) {
   return "";
 }
 
-// double calculateThrottle(double cte) {
-//   double possitive_cte = fabs(cte);
-//   if (fabs(cte) < 0.01 ) {
-//     return 1.1 - (possitive_cte / 0.01);
-//   }
-//   return 0.3;
-// }
+double calculateThrottle(double cte, double speed, double total_error) {
+  if (cte > 0.9) {
+    // Special case where we prefer to avoid using the PID values in favor of
+    // reducing the speed when the error is big enough.
+    if (speed > 30) {
+      std::cout << "CTE: " << cte << " | Speed: " << speed << " | Set throttle to 0" << std::endl;
+      return 0;
+    } else {
+      std::cout << "CTE: " << cte << " | Speed: " << speed << " | Set throttle to 0.2" << std::endl;
+      return 0.2;
+    }
+  }
+  if (!FAST_AND_FURIOUS_MODE_ENABLED) {
+    return 0.3;
+  }
+  // PID was configured to return a bigger negative values when error is bigger
+  // With this we assure the value is between 0.3 and 1 (when total_error is 0)
+  return 1 + max(-0.7, total_error);
+}
 
 int main() {
   uWS::Hub h;
 
-  PID pid;
+  PID steeringPID;
 
   double Kp = 0.08; 
   double Ki = 0.000166;
   double Kd = 2.501;
 
-  pid.Init(Kp, Ki, Kd);
+  steeringPID.Init(Kp, Ki, Kd);
   std::vector<double> params{ Kp, Ki, Kd };
   ParamsOptimizer paramsOptimizer{ params, MIN_TOLERANCE};
+
+  PID throttlePID;
+  throttlePID.Init(-1, 0, 0.5); //Params manually optimized
 
   int count = 0;
   double total_error = 0;
 
   h.onMessage([
-    &pid,
+    &steeringPID,
+    &throttlePID,
     &paramsOptimizer,
     &count,
     &total_error
@@ -81,16 +98,21 @@ int main() {
         if (event == "telemetry") {
           // j[1] is the data JSON object
           double cte = std::stod(j[1]["cte"].get<string>());
-          // double speed = std::stod(j[1]["speed"].get<string>());
+          double speed = std::stod(j[1]["speed"].get<string>());
           // double angle = std::stod(j[1]["steering_angle"].get<string>());
 
-          pid.UpdateError(-cte);
-          double steer_value = pid.TotalError();
+          steeringPID.UpdateError(-cte);
+          double steer_value = steeringPID.TotalError();
+          if (fabs(cte) > 0.9) {
+            std::cout << "CTE: " << cte << " | Boost steer_value from " << steer_value << " to " << steer_value * 1.25 << std::endl;
+            // Boost the steering value correction for some special curves where the error is too big
+            steer_value *= 1.4;
+          }
 
           if (TWIDDLE_ENABLED) {
             if (count > AMOUNT_OF_ITERATIONS) {
               std::vector<double> new_params = paramsOptimizer.getParams(total_error / count);
-              pid.Init(new_params[0], new_params[1], new_params[2]);
+              steeringPID.Init(new_params[0], new_params[1], new_params[2]);
               count = 0;
               total_error = 0;
             } else {
@@ -99,15 +121,12 @@ int main() {
             }
           }
 
-          // double throttle = calculateThrottle(cte);
-
-          // DEBUG
-          // std::cout << "cte: " << cte << " steer_value: " << steer_value << std::endl;
-          // std::cout << "cte: " << cte << " throttle: " << throttle << std::endl;
+          throttlePID.UpdateError(fabs(cte));
+          double throttle = calculateThrottle(fabs(cte), speed, throttlePID.TotalError());
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.3;
+          msgJson["throttle"] = throttle;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           // std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
