@@ -12,10 +12,11 @@ using std::string;
 using std::max;
 using std::min;
 
-const double MIN_TOLERANCE = 0.002;
-const bool TWIDDLE_ENABLED = false;
-const int AMOUNT_OF_ITERATIONS = 10000;
-const bool FAST_AND_FURIOUS_MODE_ENABLED = false;
+const double MIN_TOLERANCE = 0.002; // Only used when twiddle is enabled
+const bool TWIDDLE_ENABLED = false; // Enable it to keep optimizing PID's params
+const int AMOUNT_OF_ITERATIONS = 10000; // Used when twiddle is enabled
+const bool FAST_AND_FURIOUS_MODE_ENABLED = false; // Enable it to go FAST!
+const double MAX_CTE = 0.9; // Used to handle throttle and steering in a different way
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -39,7 +40,7 @@ string hasData(string s) {
 }
 
 double calculateThrottle(double cte, double speed, double total_error) {
-  if (cte > 0.9) {
+  if (cte > MAX_CTE) {
     // Special case where we prefer to avoid using the PID values in favor of
     // reducing the speed when the error is big enough.
     if (speed > 30) {
@@ -103,7 +104,7 @@ int main() {
 
           steeringPID.UpdateError(-cte);
           double steer_value = steeringPID.TotalError();
-          if (!TWIDDLE_ENABLED && fabs(cte) > 0.9) {
+          if (!TWIDDLE_ENABLED && fabs(cte) > MAX_CTE) {
             std::cout << "CTE: " << cte << " | Boost steer_value from " << steer_value << " to " << steer_value * 1.25 << std::endl;
             // Boost the steering value correction for some special curves where the error is too big
             steer_value *= 1.4;
