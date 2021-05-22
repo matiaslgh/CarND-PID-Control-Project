@@ -12,8 +12,9 @@ using std::string;
 using std::max;
 using std::min;
 
-const double MIN_TOLERANCE = 0.0001;
+const double MIN_TOLERANCE = 0.002;
 const bool TWIDDLE_ENABLED = false;
+const int AMOUNT_OF_ITERATIONS = 10000;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -48,14 +49,10 @@ int main() {
   uWS::Hub h;
 
   PID pid;
-  // double Kp = 0.2; 
-  // double Ki = 0.0001;
-  // double Kd = 2;
 
-  // best error:  0.136547
-  double Kp = 0.210960; 
-  double Ki = 0.000400;
-  double Kd = 2.000300;
+  double Kp = 0.08; 
+  double Ki = 0.000166;
+  double Kd = 2.501;
 
   pid.Init(Kp, Ki, Kd);
   std::vector<double> params{ Kp, Ki, Kd };
@@ -91,7 +88,7 @@ int main() {
           double steer_value = pid.TotalError();
 
           if (TWIDDLE_ENABLED) {
-            if (count > 500) {
+            if (count > AMOUNT_OF_ITERATIONS) {
               std::vector<double> new_params = paramsOptimizer.getParams(total_error / count);
               pid.Init(new_params[0], new_params[1], new_params[2]);
               count = 0;

@@ -8,15 +8,15 @@ ParamsOptimizer::ParamsOptimizer(std::vector<double> initial_params, double min_
   min_tolerance_ = min_tolerance;
   was_last_param_decreased_ = false;
   param_index_to_update_ = 0;
-  best_error_ = 999999;
+  best_error_ = 0.82;
   // for (int i = 0; i < initial_params.size(); i++) {
   //   param_deltas_.push_back(1);
   // }
 
   // Temporary using these alphas to fine tune and avoid big changes
-  param_deltas_.push_back(0.005);
-  param_deltas_.push_back(0.0003);
-  param_deltas_.push_back(0.0003);
+  param_deltas_.push_back(0.001);
+  param_deltas_.push_back(0.00005);
+  param_deltas_.push_back(0.001);
 }
 
 double ParamsOptimizer::getTolerance() {
