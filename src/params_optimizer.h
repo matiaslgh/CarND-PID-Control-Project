@@ -2,6 +2,7 @@
 #define PARAMS_OPTIMIZER_H
 
 #include <vector>
+#include <string>
 
 class ParamsOptimizer {
  private:
