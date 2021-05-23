@@ -14,6 +14,13 @@ Project to drive a car (steering angle and throttle) in a simulator by using PID
 3. Compile: `cmake .. && make`
 4. Run it: `./pid`. 
 
+## Run with docker
+
+To avoid dealing with different environments/versions you can compile + run the project with only these two commands:
+
+1. docker build -f Dockerfile -t pid-controller .
+2. docker run -p 4567:4567 pid-controller:latest
+
 ## Constants to change
 
 If you want to make the car to drive faster, set `FAST_AND_FURIOUS_MODE_ENABLED=true` in [main.cpp](https://github.com/matiaslgh/CarND-PID-Control-Project/blob/3e612ed6254f1214752f0c618bdb0161225cb684/src/main.cpp#L18). It's disabled by default because it doesn't drive as safe as it does when it's disabled.
