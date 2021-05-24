@@ -16,7 +16,7 @@ const double MIN_TOLERANCE = 0.002; // Only used when twiddle is enabled
 const bool TWIDDLE_ENABLED = false; // Enable it to keep optimizing PID's params
 const int AMOUNT_OF_ITERATIONS = 10000; // Used when twiddle is enabled
 const bool FAST_AND_FURIOUS_MODE_ENABLED = false; // Enable it to go FAST!
-const double MAX_CTE = 0.4; // Used to handle throttle and steering in a different way
+const double MAX_CTE = 0.3; // Used to handle throttle and steering in a different way
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -44,7 +44,6 @@ double calculateThrottle(double cte, double speed, double total_error) {
     // Special case where we prefer to avoid using the PID values in favor of
     // reducing the speed when the error is big enough.
     if (speed > 30) {
-      std::cout << "CTE: " << cte << " | Speed: " << speed << " | Set throttle to 0" << std::endl;
       return 0;
     } else {
       return 0.2;
@@ -72,7 +71,7 @@ int main() {
   ParamsOptimizer paramsOptimizer{ params, MIN_TOLERANCE};
 
   PID throttlePID;
-  throttlePID.Init(-1, 0, 0.5); //Params manually optimized
+  throttlePID.Init(-1.5, 0, 0.5); //Params manually optimized
 
   int count = 0;
   double total_error = 0;
