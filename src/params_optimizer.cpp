@@ -14,9 +14,9 @@ ParamsOptimizer::ParamsOptimizer(std::vector<double> initial_params, double min_
   // }
 
   // Temporary using these alphas to fine tune and avoid big changes
-  param_deltas_.push_back(0.001);
-  param_deltas_.push_back(0.00005);
-  param_deltas_.push_back(0.001);
+  param_deltas_.push_back(0.05);
+  param_deltas_.push_back(0.0001);
+  param_deltas_.push_back(5);
 }
 
 double ParamsOptimizer::getTolerance() {
