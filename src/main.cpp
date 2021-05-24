@@ -16,7 +16,7 @@ const double MIN_TOLERANCE = 0.002; // Only used when twiddle is enabled
 const bool TWIDDLE_ENABLED = false; // Enable it to keep optimizing PID's params
 const int AMOUNT_OF_ITERATIONS = 10000; // Used when twiddle is enabled
 const bool FAST_AND_FURIOUS_MODE_ENABLED = false; // Enable it to go FAST!
-const double MAX_CTE = 0.9; // Used to handle throttle and steering in a different way
+const double MAX_CTE = 0.4; // Used to handle throttle and steering in a different way
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -47,7 +47,6 @@ double calculateThrottle(double cte, double speed, double total_error) {
       std::cout << "CTE: " << cte << " | Speed: " << speed << " | Set throttle to 0" << std::endl;
       return 0;
     } else {
-      std::cout << "CTE: " << cte << " | Speed: " << speed << " | Set throttle to 0.2" << std::endl;
       return 0.2;
     }
   }
@@ -64,9 +63,9 @@ int main() {
 
   PID steeringPID;
 
-  double Kp = 0.08; 
-  double Ki = 0.000166;
-  double Kd = 2.501;
+  double Kp = 0.225698;
+  double Ki = 0.000216;
+  double Kd = 9.644250;
 
   steeringPID.Init(Kp, Ki, Kd);
   std::vector<double> params{ Kp, Ki, Kd };
@@ -104,16 +103,20 @@ int main() {
 
           steeringPID.UpdateError(-cte);
           double steer_value = steeringPID.TotalError();
-          if (!TWIDDLE_ENABLED && fabs(cte) > MAX_CTE) {
-            std::cout << "CTE: " << cte << " | Boost steer_value from " << steer_value << " to " << steer_value * 1.25 << std::endl;
-            // Boost the steering value correction for some special curves where the error is too big
-            steer_value *= 1.4;
-          }
 
           if (TWIDDLE_ENABLED) {
             if (count > AMOUNT_OF_ITERATIONS) {
               std::vector<double> new_params = paramsOptimizer.getParams(total_error / count);
               steeringPID.Init(new_params[0], new_params[1], new_params[2]);
+              count = 0;
+              total_error = 0;
+            } else {
+              total_error += fabs(cte);
+              count++;
+            }
+          } else {
+            if (count > AMOUNT_OF_ITERATIONS) {
+              std::cout << "Average error: " << total_error / count << std::endl;
               count = 0;
               total_error = 0;
             } else {
